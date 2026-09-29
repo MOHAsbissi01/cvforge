@@ -151,6 +151,13 @@ try {
     isMobile: true,
     hasTouch: true,
   });
+  // Safari can provide ReadableStream.getReader() without async iteration.
+  await mobile.addInitScript(() => {
+    Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator, {
+      value: undefined,
+      configurable: true,
+    });
+  });
   mobile.on("pageerror", (error) => errors.push(error.message));
   await mobile.goto(base);
   await mobile.screenshot({

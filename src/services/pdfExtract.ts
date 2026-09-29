@@ -1,7 +1,7 @@
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
+  "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
   import.meta.url,
 ).toString();
 
@@ -62,8 +62,20 @@ export async function extractPdf(
     for (let number = 1; number <= Math.min(document.numPages, 20); number++) {
       onProgress?.(`Reading page ${number} of ${document.numPages}…`);
       const page = await document.getPage(number);
-      const content = await page.getTextContent();
-      const items: PositionedText[] = content.items
+      // Safari does not expose ReadableStream's async iterator in some versions.
+      // PDF.js getTextContent() uses that iterator, so consume its stream reader.
+      const reader = page.streamTextContent().getReader();
+      const textItems: Awaited<ReturnType<typeof page.getTextContent>>["items"] = [];
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          textItems.push(...value.items);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      const items: PositionedText[] = textItems
         .filter((item) => "str" in item && Boolean(item.str.trim()))
         .map((item) => ({
           str: "str" in item ? item.str : "",
