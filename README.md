@@ -61,20 +61,7 @@ The smoke script uses an installed Chrome by default on Windows. Set `CHROME_PAT
 
 ## Deployment
 
-`.github/workflows/pages.yml` runs lint, tests, and a production build, then deploys `dist` from `main` with GitHub Pages. After creating the repository, select **GitHub Actions** as the Pages source in repository settings. The expected URL is `https://<username>.github.io/cvforge/`.
-
-The repository has no remote until publication. With GitHub CLI installed and authenticated:
-
-```bash
-gh repo create cvforge --public --source . --remote origin --push
-```
-
-Or create an empty `cvforge` repository on GitHub and then run:
-
-```bash
-git remote add origin https://github.com/<username>/cvforge.git
-git push -u origin main
-```
+The app is live at **https://mohasbissi01.github.io/cvforge/**. The [GitHub Actions workflow](.github/workflows/pages.yml) runs lint, tests, and a production build, then deploys `dist` from `main`. The repository's Pages source is set to **GitHub Actions**. Pushes to `main` deploy automatically after verification passes.
 
 ## Architecture
 
