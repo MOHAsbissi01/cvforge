@@ -67,6 +67,18 @@ describe("local job comparison", () => {
     expect(result.missing.map((item) => item.term)).toContain("kubernetes");
     expect(JSON.stringify(profile)).toBe(before);
   });
+  it("keeps technical phrases together when comparing a role", () => {
+    const terms = keywords(
+      "Power BI and SQL Server. Power BI dashboards for data quality.",
+    );
+    expect(terms).toContainEqual({ term: "power bi", count: 2 });
+    expect(terms).toContainEqual({ term: "sql server", count: 1 });
+    expect(
+      matchJob(demoProfile(), "Power BI and SQL Server").matched.map(
+        (item) => item.term,
+      ),
+    ).toContain("power bi");
+  });
 });
 
 describe("PDF text parser helpers", () => {
@@ -86,6 +98,26 @@ describe("PDF text parser helpers", () => {
     );
     expect(parsed.summary).toBe("Builds systems.");
     expect(parsed.skills[0].items).toBe("TypeScript");
+  });
+  it("keeps LinkedIn sidebar details out of the main timeline", () => {
+    const parsed = parseLinkedInPdf({
+      text: "",
+      ocrUsed: false,
+      sidebarText:
+        "Contact\njordan@example.com\nwww.linkedin.com/in/jordan-rivera\nTop Skills\nPower BI\nSQL Server\nLanguages\nEnglish",
+      mainText:
+        "Jordan Rivera\nData Analyst\nTunis, Tunisia\nSummary\nBuilds useful dashboards.\nExperience\nNorthstar\nData Intern\nJuly 2025 - September 2025 (3 months)\nBuilt reports with Power BI.\nEducation\nRiverton University\nComputer Engineering · (2022)",
+    });
+    expect(parsed.basics.firstName).toBe("Jordan");
+    expect(parsed.basics.email).toBe("jordan@example.com");
+    expect(parsed.experience).toHaveLength(1);
+    expect(parsed.experience[0].company).toBe("Northstar");
+    expect(parsed.experience[0].description).toContain("Power BI");
+    expect(parsed.education[0].institution).toBe("Riverton University");
+    expect(parsed.skills.map((entry) => entry.items)).toEqual([
+      "Power BI",
+      "SQL Server",
+    ]);
   });
 });
 

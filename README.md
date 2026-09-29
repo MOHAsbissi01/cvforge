@@ -7,10 +7,10 @@
 - Guided editor for contact details, summary, education, experience, projects, skills, certifications, languages, awards, volunteering, and custom sections
 - Section visibility and ordering; entry ordering, duplication, and deletion
 - Live A4 preview with three one-column templates: ATS Classic, Modern Professional, and Technical Student
-- Local PDF CV and LinkedIn profile PDF import with an explicit review step
+- Local PDF CV and LinkedIn profile PDF import with column-aware extraction, OCR for scanned pages, and an explicit review step
 - Transparent 100-point CV quality check and local job-description term comparison
 - QR code preview, separate download, and optional inclusion in the CV
-- Selectable-text A4 PDF export with hyperlinks, margins, and page handling
+- Selectable-text, single-page A4 PDF export with hyperlinks and a required candidate name
 - Browser-local autosave, draft restoration, and clear-data confirmation
 - Responsive interface, keyboard access, and a fictional demo profile
 
@@ -30,11 +30,11 @@ Students and early-career applicants often have real work to show but need help 
 
 ## Tech stack
 
-React 19, TypeScript in strict mode, Vite, Tailwind CSS 4 with a small custom design system, React Router, Zod, Lucide, PDF.js, pdf-lib with Noto Sans, QRCode, Vitest, and Playwright for browser smoke checks. Import and export libraries load only when needed.
+React 19, TypeScript in strict mode, Vite, Tailwind CSS 4 with a small custom design system, React Router, Zod, Lucide, PDF.js, Tesseract.js, pdf-lib with Noto Sans, QRCode, Vitest, and Playwright for browser smoke checks. Import and export libraries load only when needed.
 
 ## Privacy
 
-CV and LinkedIn PDF text is processed in the browser. Drafts are stored in this browser's `localStorage` under `cvforge.profile.v1`. No account, server, analytics, or remote CV storage is used in Step 1. The interface has a **Clear all data** action. Hosting the static site still requires the normal network request to load its files; external links open only when the user chooses them.
+CV and LinkedIn PDF text and scanned pages are processed in the browser. OCR downloads engine and English/French language files on first use; the CV file is not uploaded to that service. Drafts are stored in this browser's `localStorage` under `cvforge.profile.v1`. No account, server, analytics, or remote CV storage is used in Step 1. The interface has a **Clear all data** action. Hosting the static site still requires the normal network request to load its files; external links open only when the user chooses them.
 
 ## Local development
 
@@ -68,7 +68,7 @@ The app is live at **https://mohasbissi01.github.io/cvforge/**. The [GitHub Acti
 - `src/models/profile.ts` defines the versioned `CandidateProfile` used across features.
 - `src/context/ProfileContext.tsx` owns local editing and persistence state.
 - `src/services/validation.ts` validates restored drafts and URLs, and calculates completion.
-- `src/services/import.ts` maps extracted text into a reviewable profile; `pdfExtract.ts` reads PDF text locally.
+- `src/services/import.ts` maps extracted text into a reviewable profile; `pdfExtract.ts` reads positioned PDF text and runs OCR for image-only pages.
 - `src/services/review.ts` and `match.ts` implement deterministic, explainable guidance.
 - `src/services/pdf.ts` creates selectable-text PDFs, including links and optional QR.
 - `src/components/` contains the section editor and document preview.
@@ -79,8 +79,8 @@ The profile model does not depend on the CV UI or PDF layout. Future modules can
 
 ## Limitations
 
-- PDF imports are heuristic. Scanned or image-only PDFs need manual entry, and all imported details require review.
-- The browser preview estimates page count; the exported PDF uses its own pagination. Review the downloaded PDF before submitting it.
+- PDF imports are heuristic. OCR requires a first-time language-data download and may be slower on phones; all imported details require review.
+- The browser preview estimates fit. Export tries a compact layout and refuses an overlong CV instead of creating a second page. Review the downloaded PDF before submitting it.
 - PDF export currently supports Latin text well. Other writing systems may be replaced with placeholder characters until more fonts are added.
 - Job comparison measures term overlap, not semantic fit. The ATS readiness score is guidance, not a guarantee.
 - Drafts remain on one browser/device and can be removed by browser storage clearing.

@@ -29,8 +29,12 @@ function Header() {
       setExporting(true);
       const { downloadPdf } = await import("./services/pdf");
       await downloadPdf(profile);
-    } catch {
-      alert("PDF export failed. Please try again.");
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "PDF export failed. Please try again.",
+      );
     } finally {
       setExporting(false);
     }

@@ -1,5 +1,6 @@
 import type { CandidateProfile, Entry } from "../models/profile";
 import { blankProfile, createEntry } from "../models/profile";
+import type { PdfExtraction } from "./pdfExtract";
 
 const headings: Record<
   string,
@@ -169,7 +170,151 @@ export function parseGenericCv(text: string): CandidateProfile {
   return profile;
 }
 
-export function parseLinkedInPdf(text: string): CandidateProfile {
+const linkedInDate =
+  /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s*[-–]\s*(Present|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/i;
+
+function linkedInDescription(lines: string[]): {
+  description: string;
+  location: string;
+  technologies: string;
+} {
+  const cleaned = lines.filter((line) => !/^Page \d+ of \d+$/i.test(line));
+  const location = /^.+,\s*(?:Tunisie|Tunisia|France|United States|UK)$/i.test(
+    cleaned[0] ?? "",
+  )
+    ? (cleaned.shift() ?? "")
+    : "";
+  const technologies =
+    cleaned
+      .find((line) => /^Tech Stack\s*:/i.test(line))
+      ?.replace(/^Tech Stack\s*:\s*/i, "") ?? "";
+  const statements: string[] = [];
+  for (const line of cleaned) {
+    if (/^(Core Achievements|Tech Stack)\s*:/i.test(line)) continue;
+    if (
+      statements.length &&
+      !/^[-•]\s/.test(line) &&
+      !/[.!?:;]$/.test(statements.at(-1) ?? "")
+    )
+      statements[statements.length - 1] += ` ${line}`;
+    else statements.push(line.replace(/^[-•]\s*/, ""));
+  }
+  return { description: statements.join("\n"), location, technologies };
+}
+
+function parseLinkedInColumns(input: PdfExtraction): CandidateProfile {
+  const profile = blankProfile();
+  const lines = input.mainText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const side = splitSections(
+    input.sidebarText.replace(/^Top Skills\s*$/gim, "Skills"),
+  );
+  const name = (lines[0] ?? "").split(/\s+/);
+  if (name.length >= 2 && name.length <= 5) {
+    profile.basics.firstName = name[0];
+    profile.basics.lastName = name.slice(1).join(" ");
+  }
+  profile.basics.headline = lines[1] ?? "";
+  const location = (lines[2] ?? "").split(",").map((part) => part.trim());
+  profile.basics.city = location[0] ?? "";
+  profile.basics.country = location[1] ?? "";
+  profile.basics.email =
+    input.sidebarText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ??
+    "";
+  profile.basics.linkedin =
+    input.sidebarText.match(
+      /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+/i,
+    )?.[0] ?? "";
+  profile.skills = (side.skills ?? []).map((item) => ({
+    ...createEntry(),
+    category: "Skills",
+    items: item,
+  }));
+  profile.languages = (side.languages ?? []).map((language) => ({
+    ...createEntry(),
+    language,
+    proficiency: "",
+  }));
+  const certs = side.certifications ?? [];
+  profile.certifications = certs.reduce<Entry[]>((entries, line) => {
+    if (entries.length && (entries.at(-1)?.name as string)?.endsWith(" -"))
+      entries.at(-1)!.name = `${entries.at(-1)!.name} ${line}`;
+    else if (entries.length && /^by\s/i.test(line))
+      entries.at(-1)!.name = `${entries.at(-1)!.name} ${line}`;
+    else entries.push({ ...createEntry(), name: line, issuer: "" });
+    return entries;
+  }, []);
+
+  const sectionNames = new Set([
+    "summary",
+    "experience",
+    "education",
+    "projects",
+  ]);
+  const sectionAt = (label: string) =>
+    lines.findIndex((line) => line.toLowerCase() === label);
+  const between = (label: string) => {
+    const start = sectionAt(label);
+    if (start < 0) return [];
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (sectionNames.has(lines[i].toLowerCase())) {
+        end = i;
+        break;
+      }
+    }
+    return lines.slice(start + 1, end);
+  };
+  profile.summary = between("summary").join(" ").replace(/-\s+/g, "-");
+  const experience = between("experience");
+  let cursor = 0;
+  for (let i = 2; i < experience.length; i++) {
+    if (!linkedInDate.test(experience[i])) continue;
+    const company = experience[i - 2];
+    const position = experience[i - 1];
+    if (!company || !position) continue;
+    if (profile.experience.length && i - 2 > cursor) {
+      Object.assign(
+        profile.experience.at(-1)!,
+        linkedInDescription(experience.slice(cursor, i - 2)),
+      );
+    }
+    const dates = experience[i].match(linkedInDate);
+    profile.experience.push({
+      ...createEntry(),
+      company,
+      position,
+      startDate: dates?.[0].split(/\s*[-–]\s*/)[0] ?? "",
+      endDate: dates?.[0].split(/\s*[-–]\s*/)[1] ?? "",
+      description: "",
+    });
+    cursor = i + 1;
+  }
+  if (profile.experience.length)
+    Object.assign(
+      profile.experience.at(-1)!,
+      linkedInDescription(experience.slice(cursor)),
+    );
+  const education = between("education");
+  if (education.length) {
+    profile.education.push({
+      ...createEntry(),
+      institution: education[0],
+      degree: education.slice(1).join(" ").split(" · ")[0] ?? "",
+      description: "",
+    });
+  }
+  return profile;
+}
+
+export function parseLinkedInPdf(
+  input: string | PdfExtraction,
+): CandidateProfile {
+  if (typeof input !== "string" && input.sidebarText && input.mainText)
+    return parseLinkedInColumns(input);
+  const text = typeof input === "string" ? input : input.text;
   const normalized = text
     .replace(/^Contact\s*$/gim, "")
     .replace(/^Top Skills\s*$/gim, "SKILLS")

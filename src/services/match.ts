@@ -5,9 +5,35 @@ const stop = new Set(
     " ",
   ),
 );
+const phrases = [
+  "business intelligence",
+  "data engineering",
+  "data analysis",
+  "data analyst",
+  "data quality",
+  "data modeling",
+  "data warehouse",
+  "machine learning",
+  "power bi",
+  "sql server",
+  "project management",
+  "customer service",
+  "cloud computing",
+  "full stack",
+  "data pipelines",
+];
 export function keywords(text: string): { term: string; count: number }[] {
   const counts = new Map<string, number>();
-  for (const raw of text.toLowerCase().match(/[a-z][a-z+#.-]{1,}/g) ?? []) {
+  let remaining = text.toLowerCase();
+  for (const phrase of phrases) {
+    const pattern = new RegExp(`\\b${phrase.replace(/ /g, "\\s+")}\\b`, "g");
+    const found = remaining.match(pattern)?.length ?? 0;
+    if (found) {
+      counts.set(phrase, found);
+      remaining = remaining.replace(pattern, " ");
+    }
+  }
+  for (const raw of remaining.match(/[\p{L}][\p{L}+#.-]{1,}/gu) ?? []) {
     const term = raw.replace(/[.-]$/, "");
     if (term.length < 3 || stop.has(term)) continue;
     counts.set(term, (counts.get(term) ?? 0) + 1);
@@ -38,7 +64,7 @@ export function matchJob(profile: CandidateProfile, description: string) {
   const terms = keywords(description);
   const matched = terms.filter(({ term }) =>
     new RegExp(
-      `(^|[^a-z])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`,
+      `(^|[^a-z])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+")}([^a-z]|$)`,
       "i",
     ).test(cvText),
   );

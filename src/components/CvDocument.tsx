@@ -212,6 +212,34 @@ export function CvDocument({
             const entries = profile[
               key as Exclude<SectionKey, "contact" | "summary" | "custom">
             ] as Entry[];
+            if (key === "skills" && entries?.length) {
+              const general = entries.filter(
+                (entry) =>
+                  !str(entry.category) ||
+                  str(entry.category).toLowerCase() === "skills",
+              );
+              const grouped = entries.filter(
+                (entry) =>
+                  str(entry.category) &&
+                  str(entry.category).toLowerCase() !== "skills",
+              );
+              return (
+                <section className="cv-section" key={key}>
+                  <h2>{SECTION_LABELS[key]}</h2>
+                  {general.length > 0 && (
+                    <div className="cv-inline">
+                      {general
+                        .map((entry) => str(entry.items))
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  )}
+                  {grouped.map((entry) => (
+                    <EntryView entry={entry} kind={key} key={entry.id} />
+                  ))}
+                </section>
+              );
+            }
             return entries?.length ? (
               <section className="cv-section" key={key}>
                 <h2>{SECTION_LABELS[key]}</h2>

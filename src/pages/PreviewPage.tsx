@@ -103,6 +103,7 @@ function QrTool() {
 export function PreviewPage() {
   const { profile, update } = useProfile();
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   return (
     <main className="page-shell preview-page">
       <div className="page-intro preview-intro">
@@ -118,11 +119,16 @@ export function PreviewPage() {
           disabled={exporting}
           onClick={async () => {
             setExporting(true);
+            setExportError("");
             try {
-                  const { downloadPdf } = await import("../services/pdf");
+              const { downloadPdf } = await import("../services/pdf");
               await downloadPdf(profile);
-            } catch {
-              alert("PDF export failed. Please try again.");
+            } catch (error) {
+              setExportError(
+                error instanceof Error
+                  ? error.message
+                  : "PDF export failed. Please try again.",
+              );
             } finally {
               setExporting(false);
             }
@@ -132,6 +138,11 @@ export function PreviewPage() {
           {exporting ? "Exporting…" : "Export PDF"}
         </button>
       </div>
+      {exportError && (
+        <div className="error-box" role="alert">
+          {exportError}
+        </div>
+      )}
       <div className="final-layout">
         <div className="final-paper">
           <CvDocument profile={profile} measure />

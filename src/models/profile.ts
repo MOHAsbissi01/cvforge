@@ -66,10 +66,10 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
 export const SECTION_ORDER: SectionKey[] = [
   "contact",
   "summary",
+  "skills",
   "experience",
   "projects",
   "education",
-  "skills",
   "certifications",
   "languages",
   "awards",
@@ -115,8 +115,8 @@ export function chooseTemplate(
 ): void {
   profile.template = template;
   if (template !== "student") return;
-  const promoted = profile.sections.filter(
-    (section) => section.key === "projects" || section.key === "skills",
+  const promoted = (["skills", "projects"] as const).flatMap((key) =>
+    profile.sections.filter((section) => section.key === key),
   );
   const remaining = profile.sections.filter(
     (section) => section.key !== "projects" && section.key !== "skills",

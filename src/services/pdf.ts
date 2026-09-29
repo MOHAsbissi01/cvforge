@@ -29,7 +29,30 @@ const date = (entry: Entry) =>
     .filter(Boolean)
     .join(" – ");
 
+export class PdfExportError extends Error {}
+const PAGE_FULL = Symbol("page full");
+
 export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
+  if (!profile.basics.firstName.trim() || !profile.basics.lastName.trim())
+    throw new PdfExportError(
+      "Add your first and last name in the builder before exporting.",
+    );
+  for (const scale of [1, 0.94, 0.88]) {
+    try {
+      return await renderPdf(profile, scale);
+    } catch (error) {
+      if (error !== PAGE_FULL) throw error;
+    }
+  }
+  throw new PdfExportError(
+    "This CV does not fit on one page. Shorten descriptions or hide lower-priority sections in the builder, then export again.",
+  );
+}
+
+async function renderPdf(
+  profile: CandidateProfile,
+  scale: number,
+): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   pdf.setTitle(
@@ -49,16 +72,12 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
         ? rgb(0.08, 0.31, 0.35)
         : rgb(0.13, 0.25, 0.48);
   const ink = rgb(0.12, 0.16, 0.2);
-  let page = pdf.addPage(A4);
-  let y = A4[1] - 45;
-  const margin = 48;
+  const page = pdf.addPage(A4);
+  let y = A4[1] - 37;
+  const margin = 40;
   const width = A4[0] - margin * 2;
-  const newPage = () => {
-    page = pdf.addPage(A4);
-    y = A4[1] - 45;
-  };
   const ensure = (height: number) => {
-    if (y - height < 45) newPage();
+    if (y - height < 37) throw PAGE_FULL;
   };
   const wrap = (
     value: string,
@@ -90,11 +109,11 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
       gap?: number;
     } = {},
   ) => {
-    const size = options.size ?? 9;
+    const size = (options.size ?? 9) * scale;
     const font = options.font ?? regular;
     const indent = options.indent ?? 0;
     for (const line of wrap(value, font, size, width - indent)) {
-      ensure(size + 5);
+      ensure(size + 4 * scale);
       page.drawText(line, {
         x: margin + indent,
         y,
@@ -102,28 +121,28 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
         font,
         color: options.color ?? ink,
       });
-      y -= size + 4;
+      y -= size + 3.2 * scale;
     }
-    y -= options.gap ?? 0;
+    y -= (options.gap ?? 0) * scale;
   };
   const heading = (label: string) => {
-    ensure(40);
-    y -= 9;
+    ensure(29 * scale);
+    y -= 7 * scale;
     page.drawText(label.toUpperCase(), {
       x: margin,
       y,
-      size: 9,
+      size: 8.7 * scale,
       font: bold,
       color: accent,
     });
-    y -= 7;
+    y -= 5 * scale;
     page.drawLine({
       start: { x: margin, y },
       end: { x: margin + width, y },
       thickness: 0.6,
       color: accent,
     });
-    y -= 16;
+    y -= 11 * scale;
   };
   const drawLink = (value: string) => {
     const url = normalizeUrl(value);
@@ -132,11 +151,11 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
       return;
     }
     const printable = safe(value.replace(/^https?:\/\//, ""));
-    ensure(14);
+    ensure(14 * scale);
     page.drawText(printable, {
       x: margin,
       y,
-      size: 8.5,
+      size: 8.5 * scale,
       font: regular,
       color: accent,
     });
@@ -145,7 +164,7 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
       y - 2,
       Math.min(
         margin + width,
-        margin + regular.widthOfTextAtSize(printable, 8.5),
+        margin + regular.widthOfTextAtSize(printable, 8.5 * scale),
       ),
       y + 10,
     ];
@@ -162,7 +181,7 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
       pdf.context.obj([]);
     annots.push(ref);
     page.node.set(PDFName.of("Annots"), annots);
-    y -= 12;
+    y -= 11 * scale;
   };
   const item = (
     title: string,
@@ -171,7 +190,7 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
     extras: string[] = [],
   ) => {
     if (!title && !subtitle && !description) return;
-    ensure(42);
+    ensure(26 * scale);
     if (title) draw(title, { size: 10, font: bold, gap: 1 });
     if (subtitle)
       draw(subtitle, { size: 8.5, color: rgb(0.36, 0.4, 0.45), gap: 2 });
@@ -182,11 +201,11 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
       if (normalizeUrl(extra)) drawLink(extra);
       else draw(extra, { size: 8.5, gap: 1 });
     }
-    y -= 6;
+    y -= 4 * scale;
   };
   const fullName =
     `${profile.basics.firstName} ${profile.basics.lastName}`.trim();
-  draw(fullName || "Your name", {
+  draw(fullName, {
     size: 21,
     font: bold,
     color: accent,
@@ -254,6 +273,21 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
     ] as Entry[];
     if (!entries?.length) continue;
     heading(SECTION_LABELS[key]);
+    if (key === "skills") {
+      const general = entries.filter(
+        (entry) =>
+          !text(entry.category) ||
+          text(entry.category).toLowerCase() === "skills",
+      );
+      if (general.length)
+        draw(
+          general
+            .map((entry) => text(entry.items))
+            .filter(Boolean)
+            .join("  ·  "),
+          { gap: 2 },
+        );
+    }
     for (const entry of entries) {
       switch (key as SectionKey) {
         case "experience":
@@ -295,9 +329,11 @@ export async function makePdf(profile: CandidateProfile): Promise<Uint8Array> {
           );
           break;
         case "skills":
-          draw(`${text(entry.category) || "Skills"}: ${text(entry.items)}`, {
-            gap: 3,
-          });
+          if (
+            text(entry.category) &&
+            text(entry.category).toLowerCase() !== "skills"
+          )
+            draw(`${text(entry.category)}: ${text(entry.items)}`, { gap: 2 });
           break;
         case "languages":
           draw(

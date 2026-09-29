@@ -17,24 +17,28 @@ export function ImportPage() {
   const [draft, setDraft] = useState<CandidateProfile | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
   async function handleFile(file?: File) {
     if (!file) return;
     setError("");
     setBusy(true);
     setDraft(null);
     try {
-      const { extractPdfText } = await import("../services/pdfExtract");
-      const extracted = await extractPdfText(file);
-      if (extracted.trim().length < 50)
+      const { extractPdf } = await import("../services/pdfExtract");
+      const extracted = await extractPdf(file, setProgress);
+      if (extracted.text.trim().length < 50)
         throw new Error(
           "We couldn't reliably read this PDF. You can still enter your information manually.",
         );
-      setRaw(extracted);
+      setRaw(extracted.text);
       setFileName(file.name);
+      const isLinkedIn =
+        kind === "linkedin" ||
+        /(?:Top Skills|linkedin\.com\/in\/)/i.test(extracted.sidebarText);
       setDraft(
-        kind === "linkedin"
+        isLinkedIn
           ? parseLinkedInPdf(extracted)
-          : parseGenericCv(extracted),
+          : parseGenericCv(extracted.text),
       );
     } catch (cause) {
       setError(
@@ -44,6 +48,7 @@ export function ImportPage() {
       );
     } finally {
       setBusy(false);
+      setProgress("");
     }
   }
   const counts = draft
@@ -62,8 +67,8 @@ export function ImportPage() {
         <span className="eyebrow">IMPORT</span>
         <h1>Bring your existing CV.</h1>
         <p>
-          Extract text from a PDF in your browser, then review every detail
-          before it enters your draft.
+          Extract text and recognize scanned pages in your browser, then review
+          every detail before it enters your draft.
         </p>
         <PrivacyLine />
       </div>
@@ -91,17 +96,24 @@ export function ImportPage() {
           <p>
             {kind === "linkedin"
               ? "Open your LinkedIn profile, choose its save-to-PDF option, and upload the resulting file here."
-              : "We’ll try to identify contact details and common CV sections from selectable PDF text."}
+              : "We’ll identify contact details and CV sections, including text on scanned pages."}
           </p>
           <label className="upload-zone">
             <UploadCloud size={30} />
-            <strong>{busy ? "Reading PDF…" : "Choose a PDF to import"}</strong>
-            <span>PDF only · up to 10 MB · processed locally</span>
+            {busy && <span role="status">{progress || "Reading PDF…"}</span>}
+            <strong>
+              {busy ? "Processing PDF…" : "Choose a PDF to import"}
+            </strong>
+            <span>PDF only · up to 10 MB · processed in your browser</span>
             <input
               type="file"
-              accept=".pdf,application/pdf"
+              accept=".pdf,application/pdf,application/octet-stream"
+              aria-label="Choose a PDF to import"
               disabled={busy}
-              onChange={(event) => handleFile(event.target.files?.[0])}
+              onChange={(event) => {
+                void handleFile(event.target.files?.[0]);
+                event.target.value = "";
+              }}
             />
           </label>
           {error && (
@@ -110,8 +122,8 @@ export function ImportPage() {
             </div>
           )}
           <p className="fine-print">
-            Scanned or image-only PDFs may not contain readable text. You can
-            always <Link to="/builder">start manually</Link>.
+            OCR for scanned PDFs may take longer on a phone. You can always{" "}
+            <Link to="/builder">start manually</Link>.
           </p>
         </div>
         <div className="card review-import">
