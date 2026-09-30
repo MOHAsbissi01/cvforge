@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronDown, FileCheck2, UploadCloud } from "lucide-react";
+import { FlowSteps } from "../components/FlowSteps";
 import { PrivacyLine } from "../components/PrivacyLine";
 import { useProfile } from "../context/ProfileContext";
 import type { CandidateProfile } from "../models/profile";
@@ -9,42 +10,49 @@ import { parseGenericCv, parseLinkedInPdf } from "../services/import";
 export function ImportPage() {
   const { replace } = useProfile();
   const navigate = useNavigate();
-  const [kind, setKind] = useState<"cv" | "linkedin">(
-    window.location.hash.includes("linkedin") ? "linkedin" : "cv",
-  );
   const [fileName, setFileName] = useState("");
   const [raw, setRaw] = useState("");
   const [draft, setDraft] = useState<CandidateProfile | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
-  async function handleFile(file?: File) {
-    if (!file) return;
+  const reviewRef = useRef<HTMLDivElement>(null);
+  async function handleFiles(files: File[]) {
+    if (!files.length) return;
     setError("");
     setBusy(true);
     setDraft(null);
     try {
-      const { extractPdf } = await import("../services/pdfExtract");
-      const extracted = await extractPdf(file, setProgress);
-      if (extracted.text.trim().length < 50)
+      const { extractFiles } = await import("../services/fileExtract");
+      const extracted = await extractFiles(files, setProgress);
+      if (extracted.text.trim().length < 12)
         throw new Error(
-          "We couldn't reliably read this PDF. You can still enter your information manually.",
+          "We couldn't find readable CV text. Try a clearer file or enter your details manually.",
         );
       setRaw(extracted.text);
-      setFileName(file.name);
+      setFileName(files.map((file) => file.name).join(", "));
       const isLinkedIn =
-        kind === "linkedin" ||
+        extracted.source === "pdf" &&
         /(?:Top Skills|linkedin\.com\/in\/)/i.test(extracted.sidebarText);
       setDraft(
         isLinkedIn
           ? parseLinkedInPdf(extracted)
           : parseGenericCv(extracted.text),
       );
+      if (window.innerWidth < 760)
+        window.setTimeout(
+          () =>
+            reviewRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            }),
+          150,
+        );
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : "We couldn't reliably read this PDF. You can still enter your information manually.",
+          : "We couldn't read this file. Try another file or enter your details manually.",
       );
     } finally {
       setBusy(false);
@@ -63,55 +71,39 @@ export function ImportPage() {
     : [];
   return (
     <main className="page-shell">
+      <FlowSteps current="/import" />
       <div className="page-intro">
         <span className="eyebrow">IMPORT</span>
-        <h1>Bring your existing CV.</h1>
+        <h1>Start with your CV.</h1>
         <p>
-          Extract text and recognize scanned pages in your browser, then review
-          every detail before it enters your draft.
+          Choose a PDF, Word DOCX, or screenshot. CVForge reads it in your
+          browser; you check the result before it enters your draft.
         </p>
         <PrivacyLine />
       </div>
       <div className="import-grid">
         <div className="card import-card">
-          <div className="segmented">
-            <button
-              className={kind === "cv" ? "selected" : ""}
-              onClick={() => setKind("cv")}
-            >
-              CV PDF
-            </button>
-            <button
-              className={kind === "linkedin" ? "selected" : ""}
-              onClick={() => setKind("linkedin")}
-            >
-              LinkedIn PDF
-            </button>
-          </div>
-          <h2>
-            {kind === "linkedin"
-              ? "Import LinkedIn profile PDF"
-              : "Upload a CV PDF"}
-          </h2>
+          <span className="eyebrow">STEP 1</span>
+          <h2>Choose your file</h2>
           <p>
-            {kind === "linkedin"
-              ? "Open your LinkedIn profile, choose its save-to-PDF option, and upload the resulting file here."
-              : "We’ll identify contact details and CV sections, including text on scanned pages."}
+            Standard CVs and LinkedIn PDFs use the same upload. For a CV spread
+            across screenshots, select the images together in page order.
           </p>
           <label className="upload-zone">
             <UploadCloud size={30} />
-            {busy && <span role="status">{progress || "Reading PDF…"}</span>}
+            {busy && <span role="status">{progress || "Reading file…"}</span>}
             <strong>
-              {busy ? "Processing PDF…" : "Choose a PDF to import"}
+              {busy ? "Processing…" : "Choose CV file or screenshots"}
             </strong>
-            <span>PDF only · up to 10 MB · processed in your browser</span>
+            <span>PDF, DOCX, PNG, JPG, WebP, HEIC · up to 4 images</span>
             <input
               type="file"
-              accept=".pdf,application/pdf,application/octet-stream"
-              aria-label="Choose a PDF to import"
+              accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,.heic,.heif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+              multiple
+              aria-label="Choose CV file or screenshots"
               disabled={busy}
               onChange={(event) => {
-                void handleFile(event.target.files?.[0]);
+                void handleFiles(Array.from(event.target.files ?? []));
                 event.target.value = "";
               }}
             />
@@ -122,13 +114,13 @@ export function ImportPage() {
             </div>
           )}
           <p className="fine-print">
-            OCR for scanned PDFs may take longer on a phone. You can always{" "}
+            Image recognition may take longer on a phone. You can always{" "}
             <Link to="/builder">start manually</Link>.
           </p>
         </div>
-        <div className="card review-import">
+        <div className="card review-import" ref={reviewRef}>
           <div className="card-top">
-            <span className="eyebrow">REVIEW BEFORE ACCEPTING</span>
+            <span className="eyebrow">STEP 2 · REVIEW BEFORE ACCEPTING</span>
             {fileName && <span className="file-badge">{fileName}</span>}
           </div>
           {draft ? (
@@ -250,8 +242,18 @@ export function ImportPage() {
                 After accepting, review individual entries and dates in the
                 builder. Your current draft will be replaced.
               </p>
+              {(!draft.basics.firstName.trim() ||
+                !draft.basics.lastName.trim()) && (
+                <p className="fine-print">
+                  Enter your first and last name above to continue.
+                </p>
+              )}
               <button
                 className="button button-primary"
+                disabled={
+                  !draft.basics.firstName.trim() ||
+                  !draft.basics.lastName.trim()
+                }
                 onClick={() => {
                   replace(draft);
                   navigate("/builder");

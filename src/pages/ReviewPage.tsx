@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { FlowSteps } from "../components/FlowSteps";
 import { useProfile } from "../context/ProfileContext";
 import { matchJob } from "../services/match";
 import { reviewProfile } from "../services/review";
@@ -14,6 +17,7 @@ export function ReviewPage() {
   );
   return (
     <main className="page-shell">
+      <FlowSteps current="/review" />
       <div className="page-intro">
         <span className="eyebrow">CV QUALITY</span>
         <h1>See what’s working.</h1>
@@ -143,6 +147,11 @@ export function ReviewPage() {
           </div>
         )}
       </section>
+      <div className="flow-next">
+        <Link className="button button-primary" to="/preview">
+          Continue to preview <ArrowRight size={16} />
+        </Link>
+      </div>
     </main>
   );
 }

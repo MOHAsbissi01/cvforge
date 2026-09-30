@@ -64,6 +64,52 @@ svg {
   padding: 60px 0 90px;
   min-height: calc(100vh - 150px);
 }
+.flow-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 32px;
+}
+.flow-steps a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: #6c8084;
+  font-size: 12px;
+  font-weight: 700;
+}
+.flow-steps a.active {
+  border-color: #53a593;
+  background: #eaf6f1;
+  color: var(--accent);
+}
+.flow-steps a span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e6eeeb;
+  flex: none;
+}
+.flow-steps a.active span {
+  background: var(--accent);
+  color: white;
+}
+.builder-page .flow-steps {
+  padding-top: 18px;
+  margin-bottom: 0;
+}
+.flow-next {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
 .eyebrow {
   display: block;
   color: var(--accent);

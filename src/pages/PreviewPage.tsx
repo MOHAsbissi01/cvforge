@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Download, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { CvDocument } from "../components/CvDocument";
+import { FlowSteps } from "../components/FlowSteps";
 import { useProfile } from "../context/ProfileContext";
 import { chooseTemplate, type CandidateProfile } from "../models/profile";
 import { normalizeUrl } from "../services/validation";
@@ -106,6 +107,7 @@ export function PreviewPage() {
   const [exportError, setExportError] = useState("");
   return (
     <main className="page-shell preview-page">
+      <FlowSteps current="/preview" />
       <div className="page-intro preview-intro">
         <div>
           <span className="eyebrow">FINAL PREVIEW</span>

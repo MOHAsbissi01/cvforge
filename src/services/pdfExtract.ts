@@ -44,9 +44,8 @@ export async function extractPdf(
 ): Promise<PdfExtraction> {
   if (file.size > MAX_PDF_SIZE)
     throw new Error("Choose a PDF smaller than 10 MB.");
-  // iOS and cloud file providers sometimes omit or mislabel the MIME type.
-  if (!file.name.toLowerCase().endsWith(".pdf"))
-    throw new Error("Choose a PDF file.");
+  // The caller checks the PDF signature because mobile providers may omit
+  // the filename extension and MIME type.
   const bytes = await file.arrayBuffer();
   if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-")
     throw new Error("This file does not appear to be a valid PDF.");
@@ -65,7 +64,9 @@ export async function extractPdf(
       // Safari does not expose ReadableStream's async iterator in some versions.
       // PDF.js getTextContent() uses that iterator, so consume its stream reader.
       const reader = page.streamTextContent().getReader();
-      const textItems: Awaited<ReturnType<typeof page.getTextContent>>["items"] = [];
+      const textItems: Awaited<
+        ReturnType<typeof page.getTextContent>
+      >["items"] = [];
       try {
         while (true) {
           const { value, done } = await reader.read();

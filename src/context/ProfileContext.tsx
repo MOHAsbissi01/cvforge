@@ -54,6 +54,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
   const replace = (value: CandidateProfile) => {
     shouldSave.current = true;
+    setHasDraft(true);
     setProfile(value);
   };
   const clear = () => {
@@ -65,6 +66,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
   const demo = () => {
     shouldSave.current = true;
+    setHasDraft(true);
     setProfile(demoProfile());
   };
   return (

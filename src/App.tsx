@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { HashRouter, Link, NavLink, Route, Routes } from "react-router-dom";
-import { Download, FileText, Menu } from "lucide-react";
+import {
+  HashRouter,
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
+import { ArrowRight, Download, FileText, Menu } from "lucide-react";
 import { PrivacyLine } from "./components/PrivacyLine";
 import { ProfileProvider, useProfile } from "./context/ProfileContext";
 import { Landing } from "./pages/LandingPage";
@@ -22,6 +29,7 @@ function Brand() {
 }
 function Header() {
   const { profile } = useProfile();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   async function exportNow() {
@@ -54,6 +62,9 @@ function Header() {
           className={open ? "nav-links open" : "nav-links"}
           aria-label="Main navigation"
         >
+          <NavLink onClick={() => setOpen(false)} to="/import">
+            Import CV
+          </NavLink>
           <NavLink onClick={() => setOpen(false)} to="/builder">
             Builder
           </NavLink>
@@ -65,16 +76,33 @@ function Header() {
           </NavLink>
         </nav>
         <div className="nav-actions">
-          <Link className="button button-ghost" to="/preview">
-            Preview
-          </Link>
-          <button
-            className="button button-primary"
-            onClick={exportNow}
-            disabled={exporting}
-          >
-            <Download size={16} /> {exporting ? "Exporting…" : "Export PDF"}
-          </button>
+          {location.pathname === "/preview" ? (
+            <button
+              className="button button-primary"
+              onClick={exportNow}
+              disabled={exporting}
+            >
+              <Download size={16} /> {exporting ? "Exporting…" : "Export PDF"}
+            </button>
+          ) : (
+            <Link
+              className="button button-primary"
+              to={
+                location.pathname === "/builder"
+                  ? "/review"
+                  : location.pathname === "/review"
+                    ? "/preview"
+                    : "/builder"
+              }
+            >
+              {location.pathname === "/builder"
+                ? "Check CV"
+                : location.pathname === "/review"
+                  ? "Preview CV"
+                  : "Edit CV"}
+              <ArrowRight size={16} />
+            </Link>
+          )}
         </div>
       </div>
     </header>

@@ -119,6 +119,18 @@ describe("PDF text parser helpers", () => {
       "SQL Server",
     ]);
   });
+  it("reads a standard CV after mobile screenshot chrome", () => {
+    const parsed = parseGenericCv(
+      "9:41\nJordan Rivera\nData Analyst\njordan@example.com\nPROFESSIONAL SUMMARY\nBuilds useful dashboards.\nWORK HISTORY\nNorthstar Analytics\nData Intern\nJuly 2025 - September 2025\nBuilt Power BI reports.\nACADEMIC BACKGROUND\nRiverton University\nComputer Engineering\nKEY SKILLS\nData: SQL, Power BI",
+    );
+    expect(parsed.basics.firstName).toBe("Jordan");
+    expect(parsed.basics.lastName).toBe("Rivera");
+    expect(parsed.experience[0].company).toBe("Northstar Analytics");
+    expect(parsed.experience[0].position).toBe("Data Intern");
+    expect(parsed.experience[0].startDate).toBe("July 2025");
+    expect(parsed.education[0].degree).toBe("Computer Engineering");
+    expect(parsed.skills[0].items).toBe("SQL, Power BI");
+  });
 });
 
 describe("local persistence", () => {

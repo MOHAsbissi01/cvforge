@@ -49,7 +49,7 @@ try {
     .getByPlaceholder(/Paste a job description/)
     .fill("Python SQL Power BI Kubernetes");
   await page.getByText("kubernetes", { exact: false }).first().waitFor();
-  await page.getByRole("link", { name: "Preview", exact: true }).click();
+  await page.getByRole("link", { name: /4 Export/ }).click();
   await page.getByRole("button", { name: /Technical Student/ }).waitFor();
   await page.getByLabel("QR destination").selectOption("github");
   await page
@@ -117,16 +117,14 @@ try {
     });
     importPage.on("pageerror", (error) => errors.push(error.message));
     await importPage.goto(`${base}#/import`);
-    await importPage
-      .locator("input[type=file]")
-      .setInputFiles({
-        name: "invalid.pdf",
-        mimeType: "application/pdf",
-        buffer: Buffer.from("not a pdf"),
-      });
+    await importPage.locator("input[type=file]").setInputFiles({
+      name: "invalid.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("not a pdf"),
+    });
     await importPage
       .getByRole("alert")
-      .getByText("This file does not appear to be a valid PDF.")
+      .getByText(/Choose a valid PDF, DOCX/)
       .waitFor();
     await importPage.locator("input[type=file]").setInputFiles(process.argv[2]);
     await importPage

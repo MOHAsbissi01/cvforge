@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Check,
   EyeOff,
-  FolderOpen,
   Plus,
   UploadCloud,
   WandSparkles,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { BuilderEditor } from "../components/BuilderEditor";
 import { CvDocument } from "../components/CvDocument";
+import { FlowSteps } from "../components/FlowSteps";
 import { PrivacyLine } from "../components/PrivacyLine";
 import { useProfile } from "../context/ProfileContext";
 import {
@@ -60,14 +60,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
               <UploadCloud size={20} />
             </span>
             <strong>Import my CV</strong>
-            <small>Review extracted PDF details</small>
-          </button>
-          <button onClick={() => navigate("/import?type=linkedin")}>
-            <span className="choice-icon">
-              <FolderOpen size={20} />
-            </span>
-            <strong>Import LinkedIn PDF</strong>
-            <small>Use a saved profile PDF</small>
+            <small>PDF, DOCX, or screenshots</small>
           </button>
           <button
             onClick={() => {
@@ -109,6 +102,9 @@ export function Builder() {
   }, []);
   return (
     <main className="builder-page">
+      <div className="shell-wide">
+        <FlowSteps current="/builder" />
+      </div>
       <div className="builder-top shell-wide">
         <div>
           <span className="eyebrow">YOUR WORKSPACE</span>

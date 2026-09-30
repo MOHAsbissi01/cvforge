@@ -110,8 +110,8 @@ export function Landing() {
           </span>
           <h3>Keep control of your data</h3>
           <p>
-            Drafts and PDF processing stay in your browser, with a clear-data
-            option.
+            Drafts and CV file processing stay in your browser, with a
+            clear-data option.
           </p>
         </article>
       </section>
@@ -120,7 +120,8 @@ export function Landing() {
           <span className="eyebrow">GET STARTED</span>
           <h2>Start with what you have.</h2>
           <p>
-            Build from scratch, import a PDF, or explore a fictional demo CV.
+            Build from scratch, import a PDF, DOCX, or screenshots, or explore a
+            fictional demo CV.
           </p>
         </div>
         <div className="bottom-actions">

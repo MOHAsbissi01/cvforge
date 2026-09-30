@@ -22,14 +22,23 @@ const headings: Record<
   profile: "summary",
   about: "summary",
   experience: "experience",
+  "professional experience": "experience",
   "work experience": "experience",
+  "work history": "experience",
+  "employment history": "experience",
   employment: "experience",
   education: "education",
+  "academic background": "education",
+  qualifications: "education",
   projects: "projects",
   "selected projects": "projects",
   skills: "skills",
+  "key skills": "skills",
+  "core skills": "skills",
+  "core competencies": "skills",
   "technical skills": "skills",
   certifications: "certifications",
+  "licenses and certifications": "certifications",
   certificates: "certifications",
   languages: "languages",
   awards: "awards",
@@ -63,23 +72,39 @@ function groupEntries(lines: string[], label: string, detail: string): Entry[] {
   let current: Entry | null = null;
   for (const line of lines) {
     const startsWithDate =
-      /^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\b/i.test(
+      /^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}|\d{4})\b/i.test(
         line,
       );
     const looksLikeHeading =
-      (!startsWithDate && /\s\|\s/.test(line)) ||
+      (!startsWithDate && /\s[|–—]\s/.test(line)) ||
       /^[A-Z][^.!?]{8,100}\s{2,}(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/.test(
         line,
       );
     if (!current || looksLikeHeading) {
       current = createEntry();
-      const parts = line.split(/\s\|\s/, 2);
+      const parts = line.split(/\s[|–—]\s/, 2);
       current[label] = parts[0] ?? line;
       current[detail] = parts[1] ?? "";
       current.description = "";
       entries.push(current);
-    } else
-      current.description = `${String(current.description ?? "")}${current.description ? "\n" : ""}${line.replace(/^[-•]\s*/, "")}`;
+    } else {
+      const range = line.match(
+        /^(\w+\s+\d{4}|\d{4}(?:-\d{2})?)\s*[-–—]\s*(Present|\w+\s+\d{4}|\d{4}(?:-\d{2})?)/i,
+      );
+      if (range) {
+        current.startDate = range[1];
+        current.endDate = range[2];
+      } else if (
+        !current[detail] &&
+        !current.description &&
+        detail !== "role" &&
+        line.length < 90 &&
+        !/[.!?]$/.test(line)
+      ) {
+        current[detail] = line;
+      } else
+        current.description = `${String(current.description ?? "")}${current.description ? "\n" : ""}${line.replace(/^[-•]\s*/, "")}`;
+    }
   }
   return entries;
 }
@@ -96,11 +121,18 @@ export function parseGenericCv(text: string): CandidateProfile {
   const github = text.match(
     /(?:https?:\/\/)?(?:www\.)?github\.com\/[\w-]+/i,
   )?.[0];
-  const nameIndex = sections.header.findIndex(
-    (line) =>
-      /^[A-Z][A-Z ' -]{3,70}$/.test(line) &&
-      line.trim().split(/\s+/).length >= 2,
-  );
+  const nameIndex = sections.header.findIndex((line) => {
+    const words = line.trim().split(/\s+/);
+    return (
+      words.length >= 2 &&
+      words.length <= 5 &&
+      !/^(?:curriculum vitae|resume|my cv|contact|personal information)$/i.test(
+        line,
+      ) &&
+      !/[@/\d:|]/.test(line) &&
+      words.every((word) => /^\p{Lu}[\p{L}'-]*$/u.test(word))
+    );
+  });
   const firstLine = sections.header[nameIndex >= 0 ? nameIndex : 0] ?? "";
   const name = firstLine
     .replace(/[^\p{L}' -]/gu, "")
@@ -111,7 +143,9 @@ export function parseGenericCv(text: string): CandidateProfile {
     profile.basics.lastName = name.slice(1).join(" ");
   }
   profile.basics.headline =
-    sections.header[(nameIndex >= 0 ? nameIndex : 0) + 1] ?? "";
+    sections.header
+      .slice((nameIndex >= 0 ? nameIndex : 0) + 1)
+      .find((line) => !/[@/\d]/.test(line)) ?? "";
   profile.basics.email = email ?? "";
   profile.basics.phone = phone ?? "";
   profile.basics.linkedin = linkedin ?? "";
